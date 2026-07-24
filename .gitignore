@@ -1,0 +1,116 @@
+# ======================
+# Node.js
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ======================
+# Build Output
+# ======================
+dist/
+dist-ssr/
+build/
+out/
+.output/
+
+# ======================
+# Environment Variables
+# ======================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+*.log.*
+
+# ======================
+# Runtime / Cache
+# ======================
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# ======================
+# Package Manager Locks
+# (keep only one based on what you use)
+# ======================
+# package-lock.json  # uncomment if using yarn/pnpm
+# yarn.lock          # uncomment if using npm/pnpm
+# pnpm-lock.yaml     # uncomment if using npm/yarn
+
+# ======================
+# OS Files
+# ======================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ======================
+# IDE / Editor
+# ======================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ======================
+# Testing
+# ======================
+coverage/
+.nyc_output/
+*.lcov
+
+# ======================
+# Temporary Files
+# ======================
+tmp/
+temp/
+public/temp/*
+!public/temp/.gitkeep
+
+# ======================
+# Database
+# ======================
+*.sqlite
+*.sqlite3
+*.db
+
+# ======================
+# SSL / Certificates
+# ======================
+*.pem
+*.key
+*.cert
+*.crt
+
+# ======================
+# Uploads (if stored locally)
+# ======================
+uploads/
