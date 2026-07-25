@@ -3,6 +3,7 @@ import { ApiError } from "../utils/apierror.js"
 import { User } from "../models/user.model.js"
 import { uploadcloudniry } from "../utils/cloudinary.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
+import jwt from "jsonwebtoken"
 
 
 
@@ -19,6 +20,10 @@ const generateAccessandrefreshtokens = async (userId) => {
         throw new ApiError(400, "Somthing went wrong .")
     }
 }
+
+
+
+
 
 
 
@@ -87,6 +92,12 @@ const registerUser = asyncHandler(async (req, res) => {
 })
 
 
+
+
+
+
+
+
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password, username } = req.body
     if (!email && !username) {
@@ -140,6 +151,13 @@ const loginUser = asyncHandler(async (req, res) => {
 
 
 
+
+
+
+
+
+
+
 const logoutUser = asyncHandler(async (req, res) => {
     console.log("here is logout user rout")
     await User.findByIdAndUpdate(req.user._id,
@@ -170,4 +188,51 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 })
 
-export { registerUser, loginUser, logoutUser }
+
+
+
+
+
+
+
+
+
+
+const refreshtoken = asyncHandler(async (req, res) => {
+    const incomingrefreshtoken = req.cookies.refreshToken || req.body.refreshToken
+    if (!incomingrefreshtoken) {
+        throw new ApiError(401, "Unauthorized request")
+    }
+    try {
+        const decodedtoken = jwt.verify(incomingrefreshtoken, process.env.REFRESH_TOKEN_SECRET)
+        const user = await User.findById(decodedtoken?._id)
+        if (!user) {
+            throw new ApiError(400, "Invalid Token")
+        }
+        if (incomingrefreshtoken !== user.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired")
+        }
+        const option = {
+            httpOnly: true,
+            secure: true,
+        }
+
+        const { newaccessToken, newrefreshToken } = await generateAccessandrefreshtokens(user._id)
+        return res.status(200)
+            .cookie("accesstoken", newaccessToken, option)
+            .cookie("refreshtoken", newrefreshToken, option)
+            .json(
+                new Apiresponce(200,
+                    { newaccessToken, newrefreshToken },
+                    "the User is logedin successfull "
+                )
+            )
+
+    } catch (error) {
+        console.log(error, "invaild token here")
+        throw new ApiError(401, error.message)
+    }
+
+})
+
+export { registerUser, loginUser, logoutUser, refreshtoken }
