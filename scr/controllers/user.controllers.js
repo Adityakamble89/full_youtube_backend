@@ -4,6 +4,10 @@ import { User } from "../models/user.model.js"
 import { uploadcloudniry } from "../utils/cloudinary.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
 import jwt from "jsonwebtoken"
+import { AsyncLocalStorage } from "async_hooks"
+import { json } from "stream/consumers"
+import { type } from "os"
+import mongoose from "mongoose"
 
 
 
@@ -235,4 +239,267 @@ const refreshtoken = asyncHandler(async (req, res) => {
 
 })
 
-export { registerUser, loginUser, logoutUser, refreshtoken }
+
+
+
+
+const changecurrentPassword = asyncHandler(async (req, res) => {
+    const { oldpassword, newpassword } = req.body
+    console.log(oldpassword, newpassword, "the old and new password")
+    console.log(req.user._id, "hhhdhdhdhyrdyuxmxx")
+    const user = await User.findById(req.user?._id)
+    console.log(user, "the user")
+    const ispasswordcorrect = user.isPasswordCorrect(oldpassword)
+    if (!ispasswordcorrect) {
+        throw new ApiError(400, "Invaild password!")
+
+    }
+    user.password = newpassword
+    await user.save({ validateBeforeSave: false })
+    return res.status(200)
+        .json(new Apiresponce(200, "password is changed successfull"))
+
+
+})
+
+
+
+
+
+const getcurrectUser = asyncHandler(async (req, res) => {
+    const currentUser = req.user
+    return res.status(200)
+        .json(new Apiresponce(200, "the current user is foundsuccessfull", currentUser))
+
+})
+
+
+
+
+
+const updateAvatar = asyncHandler(async (req, res) => {
+
+    const avatrlocalpath = req.file?.path
+
+    if (!avatrlocalpath) {
+        throw new ApiError(400, "Avatar file is required")
+    }
+    console.log("get the file image", avatrlocalpath)
+    const avtar = await uploadcloudniry(avatrlocalpath)
+
+    if (!avtar?.url) {
+        throw new ApiError(400, "Error while uploading image to Cloudinary")
+    }
+    console.log("after this updating all ")
+    await User.findByIdAndUpdate(req.user._id,
+        {
+            $set: {
+                avtar: avtar.url
+            }
+        }, {
+        new: true
+    }
+    ).select("-password")
+
+    return res.status(200).json(
+        new Apiresponce(200, { avtar: avtar.url }, "Avatar updated successfully")
+    )
+})
+
+
+const updatecoverImage = asyncHandler(async (req, res) => {
+    const coverimagelocalpath = req.file?.path
+    if (!coverimagelocalpath) {
+        throw new ApiError(400, "Cover image file is required")
+    }
+    const coverImage = await uploadcloudniry(coverimagelocalpath)
+    if (!coverImage?.url) {
+        throw new ApiError(400, "Error while uploading cover image to Cloudinary")
+    }
+    await User.findByIdAndUpdate(req.user._id, {
+        $set: {
+            coverImage: coverImage.url
+        }
+    }, { new: true }).select("-password")
+
+    return res.status(200).json(
+        new Apiresponce(200, { coverImage: coverImage.url }, "Cover image updated successfully")
+    )
+
+})
+
+
+
+const updateUserdetails = asyncHandler(async (req, res) => {
+    const { fullname, email } = req.body
+    if (!fullname || !email) throw new ApiError(400, "Please enter all the fields")
+    const user = await User.findByIdAndUpdate(req.user._id, {
+        $set: {
+            fullname,
+            email
+        }
+    }, { new: true }).select("-password")
+
+    return res.status(201).json(
+        new Apiresponce(201, "User details is updated successfully")
+    )
+
+
+})
+
+
+
+
+
+const getuserchannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params
+    if (!username?.trim()) throw new ApiError(400, "Please enter all the fields")
+    //const user = await User.findOne(username).select("-password -refreshToken")
+    // if (!user) throw new ApiError(401, "user not found")
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            },
+
+
+
+
+        },
+
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedto"
+            },
+
+
+
+
+        },
+
+
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelssubscribedcount: {
+                    $size: "$subscribedto"
+                },
+                issubscribed: {
+                    $cond: {
+                        if: { $in: [req.user._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false,
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                email: 1,
+                fullname: 1,
+                username: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                channelssubscribedcount: 1,
+                issubscribed: 1
+            }
+        }
+
+
+
+    ])
+
+
+    if (!channel?.length) {
+        throw new ApiError(401, "NO channel found")
+    }
+
+    return res.status(200).json(new Apiresponce(200, channel[0], "here is the profile data"))
+
+})
+
+
+
+
+
+
+const getuserwatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        }, {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [{
+                                $project: {
+                                    fullname: 1,
+                                    username: 1,
+                                    avtar: 1
+                                }
+                            }]
+                        },
+
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "owner"
+                            }
+                        }
+                    }
+                ]
+
+            },
+
+
+        },
+        {
+
+        }
+    ])
+
+    return res.status(200).json(new Apiresponce(200, user[0].watchHistory, "here is the profile data"))
+
+})
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshtoken,
+    updateAvatar,
+    getcurrectUser,
+    changecurrentPassword,
+    updatecoverImage,
+    updateUserdetails,
+    getuserchannelProfile,
+    getuserwatchHistory
+
+}
