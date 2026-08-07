@@ -33,6 +33,13 @@ app.use((err, req, res, next) => {
     })
 })
 
+
+
+
+import videoRouter from "./routes/video.routes.js"
+app.use("/api/v1/video", videoRouter)
+
+
 export { app }
 
 

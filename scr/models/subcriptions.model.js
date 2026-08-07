@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mangooose"
+import mongoose, { Schema } from "mongoose"
 
 const subcriptionSchema = new Schema({
     subscriber: {
