@@ -1,11 +1,13 @@
+import mongoose from "mongoose"
 import asyncHandler from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/apierror.js"
 import { Video } from "../models/video.model.js"
 import { uploadcloudniry } from "../utils/cloudinary.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
+import { User } from "../models/user.model.js"
 
 
-
+//upload video 
 const uploadvideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
     if (!title || !description) {
@@ -58,4 +60,63 @@ const uploadvideo = asyncHandler(async (req, res) => {
     return res.status(201).json(new Apiresponce(201, video, "Video uploaded successfully"))
 })
 
-export { uploadvideo }
+
+
+//get all video 
+
+const getAllVideo = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+    const pipeline = [];
+
+    pipeline.push({
+        $match: { ispublished: true }
+    });
+
+    pipeline.push({
+        $lookup: {
+            from: "users",
+            localField: "owner",
+            foreignField: "_id",
+            as: "owner",
+            pipeline: [
+                {
+                    $project: {
+                        username: 1,
+                        fullname: 1,
+                        avatar: 1
+                    }
+                }
+            ]
+        }
+    });
+    pipeline.push({
+        $addFields: {
+            owner: { $first: "$owner" }
+        }
+    });
+
+
+    pipeline.push({
+        $sort: {
+            [sortBy]: sortType === "asc" ? 1 : -1
+        }
+    });
+
+    const options = {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10)
+    };
+
+    const result = await Video.aggregatePaginate(Video.aggregate(pipeline), options);
+
+    const videos = await Video.aggregate(pipeline);
+
+    return res.status(200).json({
+        message: "Step 1 complete!",
+        dataReceived: { result }
+    });
+});
+
+
+
+export { uploadvideo, getAllVideo }

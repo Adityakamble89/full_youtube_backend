@@ -16,10 +16,11 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 
-//routes 
-
 import userRouter from "./routes/user.routes.js"
+import videoRouter from "./routes/video.routes.js"
+
 app.use("/api/v1/user", userRouter)
+app.use("/api/v1/video", videoRouter)
 
 // Error-handling middleware — catches ApiError and other errors
 app.use((err, req, res, next) => {
@@ -32,13 +33,6 @@ app.use((err, req, res, next) => {
         errors: err.error || []
     })
 })
-
-
-
-
-import videoRouter from "./routes/video.routes.js"
-app.use("/api/v1/video", videoRouter)
-
 
 export { app }
 
