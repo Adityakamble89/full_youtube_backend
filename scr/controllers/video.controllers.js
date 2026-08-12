@@ -2,12 +2,12 @@ import mongoose from "mongoose"
 import asyncHandler from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/apierror.js"
 import { Video } from "../models/video.model.js"
-import { uploadcloudniry } from "../utils/cloudinary.js"
+import { uploadcloudniry, deletecloudinary } from "../utils/cloudinary.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
-import { User } from "../models/user.model.js"
 
 
-//upload video 
+
+//upload video tested 
 const uploadvideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
     if (!title || !description) {
@@ -62,11 +62,33 @@ const uploadvideo = asyncHandler(async (req, res) => {
 
 
 
-//get all video 
+//get all video tested 
 
 const getAllVideo = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
     const pipeline = [];
+    if (query) {
+        pipeline.push(
+            {
+                $match: {
+                    $or: [
+                        {
+                            title: {
+                                $regex: query,
+                                $options: "i"
+                            }
+                        },
+                        {
+                            description: {
+                                $regex: query,
+                                $options: "i"
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+    }
 
     pipeline.push({
         $match: { ispublished: true }
@@ -107,9 +129,11 @@ const getAllVideo = asyncHandler(async (req, res) => {
         limit: parseInt(limit, 10)
     };
 
+
+
     const result = await Video.aggregatePaginate(Video.aggregate(pipeline), options);
 
-    const videos = await Video.aggregate(pipeline);
+    // const videos = await Video.aggregate(pipeline);
 
     return res.status(200).json({
         message: "Step 1 complete!",
@@ -119,4 +143,164 @@ const getAllVideo = asyncHandler(async (req, res) => {
 
 
 
-export { uploadvideo, getAllVideo }
+
+//getvideobyId tested 
+const getvideobyId = asyncHandler(async (req, res) => {
+    const { videoID } = req.params
+    if (!videoID) {
+        throw new ApiError(401, "video is not found")
+    }
+    const video = await Video.findById(videoID)
+    if (!video) {
+        throw new ApiError(401, "not found")
+    }
+    const pipeline = [];
+    pipeline.push({
+        $lookup: {
+            from: "users",
+            localField: "owner",
+            foreignField: "_id",
+            as: "owner",
+            pipeline: [
+                {
+                    $project: {
+                        username: 1,
+                        avatar: 1,
+                        fullname: 1
+                    }
+                }
+            ]
+        }
+    });
+    pipeline.push(
+        {
+            $addFields: {
+                owner: { $first: "$owner" }
+            }
+        }
+    )
+
+
+
+    const videos = await Video.aggregate(pipeline);
+
+    return res.status(200).json(new Apiresponce(200, "data", videos[0]))
+})
+
+
+
+
+//delete the video tested 
+
+const deletevideobyId = asyncHandler(async (req, res) => {
+    const { videoID } = req.params
+    if (!videoID) {
+        throw new ApiError(400, "video is not fount ")
+    }
+    const video = await Video.findByIdAndDelete(videoID)
+    if (!video) {
+        throw new ApiError(400, "error while deleting the video")
+    }
+    // const checkvideodeleted = await Video.findById(videoId)
+    // if (checkvideodeleted) {
+    //     throw new ApiError(400, "video not deleted")
+    // }
+    const deletecloudnaryoldvideo = await deletecloudinary(video.video);
+    if (deletecloudnaryoldvideo) {
+        console.log("yes the file is deleted from the cloudanary")
+    }
+    if (!deletecloudnaryoldvideo) {
+        throw new ApiError(400, "error while deleting the video from cloudinary")
+    }
+    const deletecloudnaryoldthumbnail = await deletecloudinary(video.thumbnail);
+    if (deletecloudnaryoldthumbnail) {
+        console.log("yes the file is deleted from the cloudanary")
+    }
+    if (!deletecloudnaryoldthumbnail) {
+        throw new ApiError(400, "error while deleting the thumbnail from cloudinary")
+    }
+    return res.status(200).json(new Apiresponce(200, "video deleted successfully"))
+})
+
+
+//update the video details  tested 
+const updateVideo = asyncHandler(async (req, res) => {
+    const { videoID } = req.params
+    const { title, description } = req.body;
+    if (!title || !description || !videoID) {
+        throw new ApiError(401, "video id title and description is required")
+    }
+    const video = await Video.findByIdAndUpdate(videoID, {
+        $set: { title, description },
+
+    }, {
+        new: true
+    });
+    if (!video) {
+        throw new ApiError(401, "Error while the updating detais")
+    }
+    return res.status(200).json(new Apiresponce(200, "the detais are updated successfull", video))
+
+
+
+
+})
+
+
+
+//update the thumbnail 
+const updatethumbnail = asyncHandler(async (req, res) => {
+    const { videoID } = req.params
+    console.log("this is the id ", videoID)
+    if (!videoID) throw new ApiError(400, "Not Found !");
+    const video = await Video.findById(videoID);
+    if (!video) throw new ApiError(400, "Error while finding video");
+
+    const thumbnailocalpath = req.files?.thumbnail[0].path;
+    if (!thumbnailocalpath) throw new ApiError(400, "No File is Uploaded ");
+    const newthumbnail = await uploadcloudniry(thumbnailocalpath);
+    if (!newthumbnail) throw new ApiError(400, "Error while uploading");
+    const olddeleteurl = await deletecloudinary(video.thumbnail);
+    if (!olddeleteurl) throw new ApiError(400, "Error while deleting old thumbnail");
+
+
+    video.thumbnail = newthumbnail.url
+    const responcedb = await video.save({ validateBeforeSave: false });
+
+    if (!responcedb) {
+        throw new ApiError(400, "Error while updating dbs")
+    }
+
+
+
+
+    return res.status(200).json(new Apiresponce(200, { data: video }, "success"));
+
+})
+
+
+
+
+//unpublish thr video 
+const togglePublishStatus = asyncHandler(async (req, res) => {
+    const { videoID } = req.params
+    console.log(`you can see id ${videoID}`)
+    const video = await Video.findById(videoID);
+    if (!video) throw new ApiError(404, "Video not found");
+    // 2. Toggle the boolean property on the document
+    video.ispublished = !video.ispublished;
+
+    // 3. Save updated document
+    await video.save({ validateBeforeSave: false });
+
+    return res.status(200).json(new Apiresponce(200, { data: video }, "success"));
+})
+
+
+
+
+export {
+    uploadvideo, getAllVideo,
+    getvideobyId, deletevideobyId,
+    updateVideo, updatethumbnail, togglePublishStatus
+}

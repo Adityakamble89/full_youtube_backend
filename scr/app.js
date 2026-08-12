@@ -18,9 +18,20 @@ app.use(cookieParser())
 
 import userRouter from "./routes/user.routes.js"
 import videoRouter from "./routes/video.routes.js"
+import likeRouter from "./routes/likes.routers.js"
+import commentsRouter from "./routes/comments.routers.js"
+import subscriberRouter from "./routes/subscribers.routers.js"
+import tweetRouter from "./routes/tweets.router.js"
+
 
 app.use("/api/v1/user", userRouter)
 app.use("/api/v1/video", videoRouter)
+app.use("/api/v1/like", likeRouter)
+app.use("/api/v1/comment", commentsRouter)
+app.use("/api/v1/subscribe", subscriberRouter)
+app.use("/api/v1/tweet", tweetRouter)
+
+
 
 // Error-handling middleware — catches ApiError and other errors
 app.use((err, req, res, next) => {
