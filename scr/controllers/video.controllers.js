@@ -1,6 +1,6 @@
 import mongoose from "mongoose"
 import asyncHandler from "../utils/asyncHandler.js"
-import { ApiError } from "../utils/apierror.js"
+import { ApiError } from "../utils/ApiError.js"
 import { Video } from "../models/video.model.js"
 import { uploadcloudniry, deletecloudinary } from "../utils/cloudinary.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
@@ -172,6 +172,21 @@ const getvideobyId = asyncHandler(async (req, res) => {
             ]
         }
     });
+    pipeline.push({
+        $lookup: {
+            from: "likes",
+            localField: "_id",
+            foreignField: "video",
+            as: "likes",
+        }
+    })
+    pipeline.push({
+        $addFields: {
+            likesCount: {
+                $size: "$likes"
+            }
+        }
+    })
     pipeline.push(
         {
             $addFields: {

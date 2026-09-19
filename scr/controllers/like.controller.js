@@ -1,6 +1,6 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import asyncHandler from "../utils/asyncHandler.js"
-import { ApiError } from "../utils/apierror.js"
+import { ApiError } from "../utils/Apierror.js"
 import { Like } from "../models/likes.model.js"
 import { Apiresponce } from "../utils/Apiresponce.js"
 
